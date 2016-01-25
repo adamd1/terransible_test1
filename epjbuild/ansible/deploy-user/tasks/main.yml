@@ -1,0 +1,19 @@
+    - name: add deploy user
+      user: name=deploy shell=/bin/bash groups=www-data
+
+    - name: create .ssh dir
+      file: path=/home/deploy/.ssh state=directory owner=deploy group=deploy mode=0700
+
+    - name: copy deploy keys
+      copy: src=deployment_key.rsa dest=/home/deploy/.ssh/id_rsa owner=deploy group=deploy mode=0600
+    
+    - name: copy deploy keys
+      copy: src=known_hosts dest=/home/deploy/.ssh/known_hosts owner=deploy group=deploy mode=0600
+
+    - name: copy deploy keys
+      copy: src=deployment_key.rsa.pub dest=/home/deploy/.ssh/id_rsa.pub owner=deploy group=deploy mode=0644
+    
+    - name: add key 
+      authorized_key: user=deploy key="{{ lookup('file', 'deployment_key.rsa.pub') }}"
+      
+

@@ -1,0 +1,4 @@
+Host bitbucket.org
+  Hostname bitbucket.org
+  IdentityFile ~/.ssh/deployment_key.rsa
+

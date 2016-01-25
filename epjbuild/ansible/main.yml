@@ -1,0 +1,90 @@
+---
+- hosts: "{{ target | default('all') }}"
+  name: basic lamp install with custom configs
+  sudo: yes
+  gather_facts: true
+  vars:
+    http_port: 80
+    domain: adamdmicro.emergencypuffjacket.com
+    gitrepo: git@github.com:adamd1/adamdmicrotest.git
+    gitbranch: master
+    destdir: /var/www/adamdmicro.emergencypuffjacket.com
+
+  tasks:
+    - name: Updates apt cache
+      apt: update_cache=true
+    - name: upgrade a server
+      apt: upgrade=full
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+    - name: install packages
+      apt: name={{ item }} update_cache=yes state=latest
+      with_items:
+        - apache2
+        - libapache2-mod-php5
+        - php5
+        - php5-cli
+        - php5-mysql
+        - php5-gd
+        - php5-curl
+        - php5-mcrypt
+        - php5-json
+        - php5-dev
+        - php5-memcache
+        - php5-redis
+        - openntpd
+        - git
+        - mysql-client
+        - libmysqlclient-dev
+        - mysql-client
+        - unzip
+        - curl
+        - build-essential
+
+        #- name: Set timezone variables
+        #  copy: content='America/Toronto'
+        #    dest=/etc/timezone
+        #    owner=root
+        #    group=root
+        #    mode=0644
+        #    backup=yes
+        #  notify:
+        #    - update timezone
+
+    - name: enable php5
+      command: a2enmod php5
+
+    - name: enabled mod_rewrite
+      apache2_module: name=rewrite state=present
+      notify:
+        - restart apache2
+    - name: apache2 listen on port 80
+      lineinfile: dest=/etc/apache2/ports.conf regexp="^Listen " line="Listen {{ http_port }}" state=present
+      notify:
+        - restart apache2
+    - name: apache2 virtualhost on port 80
+      lineinfile: dest=/etc/apache2/sites-available/000-default.conf regexp="^<VirtualHost \*:" line="<VirtualHost *:{{ http_port }}>"
+      notify:
+        - restart apache2
+    - name: create virtual host file
+      template: src=virtualhost.conf dest=/etc/apache2/sites-available/{{ domain }}.conf
+      notify:
+        - restart apache2
+    - name: a2ensite {{ domain }}
+      command: a2ensite {{ domain }}
+      args:
+         creates: /etc/apache2/sites-enabled/{{ domain }}.conf
+      notify:
+      - restart apache2
+    - name: clone the adamdtest website
+      git: repo={{ gitrepo }}
+           version={{ gitbranch }} dest={{ destdir }} 
+           accept_hostkey=yes key_file=/home/deploy/.ssh/id_rsa 
+           ssh_opts='-o StrictHostKeyChecking=no' clone=yes update=yes
+    #- name: clone a dummy website
+    #  git: repo=https://github.com/do-community/ansible-apache-tutorial.git dest=/var/www/adamdmicro.emergencypuffjacket.com update=no
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
+  roles:
+    - deploy-user
